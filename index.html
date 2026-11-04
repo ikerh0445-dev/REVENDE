@@ -1,0 +1,160 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101014">
+<title>REVENDE</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101014;color:white;font-family:Arial,sans-serif;padding:20px}
+header{padding:12px 0 24px}
+h1{font-size:30px;letter-spacing:3px;margin:0}
+.sub{color:#999;font-size:13px}
+nav{display:flex;gap:8px;overflow:auto;margin:15px 0 25px}
+button{border:0;border-radius:10px;padding:12px;background:#292930;color:white;font-weight:bold}
+nav button.active,.main{background:#d5b66a;color:#151515}
+.card{background:#1d1d24;padding:18px;border-radius:16px;margin:12px 0}
+h2{font-size:19px}
+.number{font-size:27px;font-weight:bold;color:#d5b66a}
+input{width:100%;padding:13px;margin:7px 0;background:#292930;border:1px solid #444;border-radius:9px;color:white}
+.action{width:100%;margin-top:10px}
+.item{border-bottom:1px solid #393940;padding:12px 0}
+.small{color:#aaa;font-size:13px}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+<h1>REVENDE.</h1>
+<div class="sub">TU NEGOCIO. TUS NÚMEROS.</div>
+</header>
+
+<nav>
+<button class="active" onclick="show('inicio',this)">Inicio</button>
+<button onclick="show('stock',this)">Productos</button>
+<button onclick="show('radar',this)">Radar</button>
+</nav>
+
+<section id="inicio">
+<h2>Tu negocio</h2>
+<div class="card">
+<div class="small">Beneficio conseguido</div>
+<div class="number" id="beneficio">0,00 €</div>
+</div>
+<div class="card">
+<div class="small">Productos en stock</div>
+<div class="number" id="cantidad">0</div>
+</div>
+<div class="card">
+<div class="small">Ventas realizadas</div>
+<div class="number" id="ventas">0</div>
+</div>
+<div class="card">
+<h2>Últimos movimientos</h2>
+<div id="movimientos" class="small">Todavía no hay ventas.</div>
+</div>
+</section>
+
+<section id="stock" class="hidden">
+<h2>Añadir producto</h2>
+<div class="card">
+<input id="nombre" placeholder="Nombre del producto">
+<input id="compra" type="number" step="0.01" placeholder="Precio de compra (€)">
+<input id="venta" type="number" step="0.01" placeholder="Precio de venta (€)">
+<input id="unidades" type="number" min="1" placeholder="Unidades">
+<button class="main action" onclick="addProduct()">AÑADIR PRODUCTO</button>
+</div>
+<h2>Mi inventario</h2>
+<div class="card" id="lista">No tienes productos todavía.</div>
+</section>
+
+<section id="radar" class="hidden">
+<h2>Radar de oportunidades</h2>
+<p class="small">Calcula si una posible reventa merece la pena.</p>
+<div class="card">
+<input id="rnombre" placeholder="Producto que has encontrado">
+<input id="rcoste" type="number" step="0.01" placeholder="Precio de compra (€)">
+<input id="rventa" type="number" step="0.01" placeholder="Precio de venta estimado (€)">
+<input id="rgastos" type="number" step="0.01" placeholder="Otros gastos (€)">
+<button class="main action" onclick="calcular()">CALCULAR BENEFICIO</button>
+<div id="resultado"></div>
+</div>
+</section>
+
+<script>
+let productos=JSON.parse(localStorage.getItem('revende_productos')||'[]');
+let historial=JSON.parse(localStorage.getItem('revende_ventas')||'[]');
+
+function guardar(){
+localStorage.setItem('revende_productos',JSON.stringify(productos));
+localStorage.setItem('revende_ventas',JSON.stringify(historial));
+actualizar();
+}
+function euros(n){return Number(n).toFixed(2).replace('.',',')+' €'}
+function show(id,btn){
+document.querySelectorAll('section').forEach(s=>s.classList.add('hidden'));
+document.getElementById(id).classList.remove('hidden');
+document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+}
+function addProduct(){
+let nombre=document.getElementById('nombre').value.trim();
+let compra=Number(document.getElementById('compra').value);
+let venta=Number(document.getElementById('venta').value);
+let unidades=Number(document.getElementById('unidades').value);
+if(!nombre||compra<0||venta<=0||!Number.isInteger(unidades)||unidades<1){
+alert('Rellena todos los campos correctamente.');return;
+}
+productos.push({id:Date.now(),nombre,compra,venta,unidades});
+guardar();
+document.getElementById('nombre').value='';
+document.getElementById('compra').value='';
+document.getElementById('venta').value='';
+document.getElementById('unidades').value='';
+}
+function vender(id){
+let p=productos.find(x=>x.id===id);
+if(!p||p.unidades<1)return;
+let beneficio=p.venta-p.compra;
+historial.push({nombre:p.nombre,beneficio,fecha:new Date().toLocaleDateString('es-ES')});
+p.unidades--;
+if(p.unidades===0)productos=productos.filter(x=>x.id!==id);
+guardar();
+}
+function eliminar(id){
+if(confirm('¿Eliminar este producto?')){
+productos=productos.filter(x=>x.id!==id);guardar();
+}
+}
+function calcular(){
+let nombre=document.getElementById('rnombre').value;
+let coste=Number(document.getElementById('rcoste').value);
+let venta=Number(document.getElementById('rventa').value);
+let gastos=Number(document.getElementById('rgastos').value||0);
+if(!nombre||coste<0||venta<=0||gastos<0){alert('Introduce los datos correctamente.');return;}
+let beneficio=venta-coste-gastos;
+document.getElementById('resultado').innerHTML=
+'<h2>Beneficio estimado: <span class="number">'+euros(beneficio)+'</span></h2>'+
+'<p class="small">'+(beneficio>=10?'¡Parece una oportunidad interesante!':'No alcanza tu objetivo de 10 € de beneficio.')+'</p>';
+}
+function actualizar(){
+let total=historial.reduce((s,v)=>s+v.beneficio,0);
+document.getElementById('beneficio').textContent=euros(total);
+document.getElementById('cantidad').textContent=productos.reduce((s,p)=>s+p.unidades,0);
+document.getElementById('ventas').textContent=historial.length;
+document.getElementById('lista').innerHTML=productos.length?productos.map(p=>
+'<div class="item"><b>'+escapeHTML(p.nombre)+'</b><br><span class="small">Compra: '+euros(p.compra)+' · Venta: '+euros(p.venta)+' · Stock: '+p.unidades+'</span><br><button onclick="vender('+p.id+')">Registrar venta</button> <button onclick="eliminar('+p.id+')">Eliminar</button></div>'
+).join(''):'No tienes productos todavía.';
+document.getElementById('movimientos').innerHTML=historial.length?historial.slice(-5).reverse().map(v=>
+'<div class="item">'+escapeHTML(v.nombre)+' · '+euros(v.beneficio)+' · '+v.fecha+'</div>'
+).join(''):'Todavía no hay ventas.';
+}
+function escapeHTML(s){
+return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+actualizar();
+</script>
+</body>
+</html>
